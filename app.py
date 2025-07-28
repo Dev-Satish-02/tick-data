@@ -140,6 +140,14 @@ def get_full_aggregator_data():
                 data.append(row)
     return jsonify(data)
 
+@app.route('/summary.csv')
+def serve_csv_file():
+    return send_file(CSV_FILE)
+
+
+@app.route('/chart')
+def show_chart():
+    return render_template('chart.html')
 
 if __name__ == '__main__':
     app.run(debug=True)
