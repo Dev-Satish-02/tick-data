@@ -42,7 +42,7 @@ if not os.path.exists(CSV_FILE):
 
 # ------------------------- Utility Functions ------------------------- #
 def get_minute(ts):
-    return datetime.fromisoformat(ts).strftime('%Y%m%d_%H%M')
+    return datetime.utcfromtimestamp(int(ts) / 1000).strftime('%Y%m%d_%H%M')
 
 def aggregate_ticks(ticks):
     prices = [tick['price'] for tick in ticks]
