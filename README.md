@@ -14,9 +14,8 @@ Subscribes to a Redis pub/sub channel to receive real-time tick data and aggrega
 3. Run the publisher:
    ```bash
     python publisher.py
-    
+
 4. Run the aggregator:
    ```bash
     python aggregator.py
-
 

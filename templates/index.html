@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Tick Data Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 2rem;
+            background: #f5f5f5;
+        }
+
+        canvas {
+            background: white;
+            padding: 1rem;
+            border-radius: 10px;
+        }
+
+        .log-box {
+            width: 500px;
+            height: 200px;
+            overflow-y: auto;
+            background: white;
+            padding: 1rem;
+            border: 1px solid #ccc;
+        }
+
+        .table-box {
+            background: white;
+            padding: 1rem;
+            border-radius: 10px;
+            border: 1px solid #ccc;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 1rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th,
+        td {
+            border: 1px solid #aaa;
+            padding: 6px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Tick Aggregator Dashboard (OHLCV)</h2>
+
+    <div style="margin-bottom: 1rem;">
+        <button onclick="startPublisher()">Start Publisher</button>
+        <button onclick="startAggregator()">Start Aggregator</button>
+        <button onclick="terminateProcesses()">Terminate Processes</button>
+        <button onclick="downloadCSV()">Download CSV</button>
+    </div>
+
+    <label>Symbol:
+        <input id="symbol" type="text" value="BTCUSDT" />
+    </label>
+    <button onclick="loadData()">Refresh Chart</button>
+
+    <canvas id="ohlcChart" width="1000" height="400"></canvas>
+
+    <h3>Live Logs</h3>
+    <div style="display: flex; gap: 2rem;">
+        <div>
+            <h4>Publisher Output</h4>
+            <div id="publisherLog" class="log-box"></div>
+        </div>
+        <div>
+            <h4>Aggregator Output</h4>
+            <div id="aggregatorLog" class="log-box"></div>
+        </div>
+    </div>
+
+    <h3>Aggregator Data Table</h3>
+    <div class="table-box" id="dataTableBox">
+        <table id="dataTable">
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Minute</th>
+                    <th>Open</th>
+                    <th>High</th>
+                    <th>Low</th>
+                    <th>Close</th>
+                    <th>Volume</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script>
+        let chart;
+
+        async function loadData() {
+            const symbol = document.getElementById('symbol').value;
+            const res = await fetch(`/data?symbol=${symbol}`);
+            const data = await res.json();
+
+            const labels = data.map(d => d.minute);
+            const closes = data.map(d => d.close);
+
+            const config = {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: `${symbol} Close Price`,
+                        data: closes,
+                        borderColor: 'blue',
+                        fill: false,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: { title: { display: true, text: 'Minute' } },
+                        y: { title: { display: true, text: 'Price' } }
+                    }
+                }
+            };
+
+            if (chart) chart.destroy();
+            chart = new Chart(document.getElementById('ohlcChart').getContext('2d'), config);
+        }
+
+        async function startPublisher() {
+            try {
+                const res = await fetch('/start_publisher');
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert(err.status || 'Failed to start publisher');
+                } else {
+                    const data = await res.json();
+                    alert(data.status);
+                }
+            } catch (e) {
+                alert("Error: Unable to reach server.");
+            }
+        }
+
+        async function startAggregator() {
+            const symbol = document.getElementById('symbol').value;
+            try {
+                const res = await fetch(`/start_aggregator?symbol=${symbol}`);
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert(err.status || 'Failed to start aggregator');
+                } else {
+                    const data = await res.json();
+                    alert(data.status);
+                }
+            } catch (e) {
+                alert("Error: Unable to reach server.");
+            }
+        }
+
+
+        async function terminateProcesses() {
+            const res = await fetch('/terminate');
+            const data = await res.json();
+            alert(data.status);
+        }
+
+        async function downloadCSV() {
+            window.location.href = '/download_csv';
+        }
+
+        async function updateLogs() {
+            const [pubRes, aggRes] = await Promise.all([
+                fetch('/log/publisher'),
+                fetch('/log/aggregator')
+            ]);
+            const pubData = await pubRes.json();
+            const aggData = await aggRes.json();
+
+            document.getElementById('publisherLog').innerHTML = pubData.map(d =>
+                `[${d.timestamp}] ${d.symbol} → Price: ${d.price}, Volume: ${d.volume}`
+            ).join('<br>');
+
+            document.getElementById('aggregatorLog').innerHTML = aggData.map(d =>
+                `[${d.minute}] ${d.symbol} → O: ${d.open}, H: ${d.high}, L: ${d.low}, C: ${d.close}, V: ${d.volume.toFixed(2)}`
+            ).join('<br>');
+        }
+
+        async function loadTable() {
+            const res = await fetch('/aggregator_data');
+            const data = await res.json();
+            const tbody = document.getElementById('dataTable').querySelector('tbody');
+            tbody.innerHTML = data.map(row => `
+                <tr>
+                    <td>${row.symbol}</td>
+                    <td>${row.minute}</td>
+                    <td>${parseFloat(row.open).toFixed(2)}</td>
+                    <td>${parseFloat(row.high).toFixed(2)}</td>
+                    <td>${parseFloat(row.low).toFixed(2)}</td>
+                    <td>${parseFloat(row.close).toFixed(2)}</td>
+                    <td>${parseFloat(row.volume).toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+
+        loadData();
+        loadTable();
+        setInterval(loadData, 15000);
+        setInterval(updateLogs, 1000);
+        setInterval(loadTable, 20000);
+    </script>
+</body>
+
+</html>
