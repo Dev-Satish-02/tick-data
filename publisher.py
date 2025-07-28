@@ -14,4 +14,6 @@ while True:
         "timestamp": datetime.utcnow().isoformat()
     }
     r.publish("BTCUSDT", json.dumps(tick))
+    r.rpush("log:publisher", json.dumps(tick))
+    r.ltrim("log:publisher", -100, -1)
     time.sleep(1)
