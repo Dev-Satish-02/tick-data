@@ -5,15 +5,18 @@ Subscribes to a Redis pub/sub channel to receive real-time tick data and aggrega
 ## Redis Installation
 
 1. Install Windows Subsytem for Linux 
-   ```bash wsl --install -d ubuntu
+   ```bash
+   wsl --install -d ubuntu
 
 2. Launch Ubuntu
 
 3. Install Redis 
-   ```bash sudo apt install redis
+   ```bash
+   sudo apt install redis
 
 4. Start server
-   ```bash sudo systemctl start redis
+   ```bash
+   sudo systemctl start redis
 
 ## Starting Application
 
