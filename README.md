@@ -2,6 +2,9 @@
 
 Subscribes to a Redis pub/sub channel to receive real-time tick data and aggregates it minute-by-minute (OHLCV).
 
+## Working
+![alt text](public/working.png)
+
 ## Dashboard
 ![alt text](public/dashboard.png)
 
