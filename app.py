@@ -6,13 +6,14 @@ import os
 import subprocess
 import signal
 
+# global config
 app = Flask(__name__)
 
 CSV_FILE = 'summary.csv'
 AGGREGATOR_PROCESS = None
 PUBLISHER_PROCESS = None
 
-
+# redis connection helper
 def connect_to_redis():
     try:
         r = redis.Redis()
@@ -21,13 +22,15 @@ def connect_to_redis():
     except redis.exceptions.ConnectionError:
         return None
 
-
+# read aggregated data
 def read_data(symbol):
     r = connect_to_redis()
     data = []
     if not r:
         return data
     keys = r.keys(f"{symbol}:*")
+# fetches keys like BTCUSDT:20250728_1234
+# decodes and parses each OHLCV entry from Redis
     if keys:
         for key in sorted(keys):
             key_str = key.decode()
@@ -39,6 +42,7 @@ def read_data(symbol):
                     'minute': timestamp,
                     **ohlcv
                 })
+# fallback to CSV if no data in Redis
     elif os.path.exists(CSV_FILE):
         with open(CSV_FILE, 'r') as f:
             reader = csv.DictReader(f)

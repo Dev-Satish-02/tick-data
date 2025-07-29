@@ -1,21 +1,26 @@
 # Real-Time Tick Aggregator
 
-## Overview
 Subscribes to a Redis pub/sub channel to receive real-time tick data and aggregates it minute-by-minute (OHLCV).
 
-## Setup
+## Redis Installation
 
-1. Install Redis and start the server.
+1. Install Windows Subsytem for Linux 
+   ```bash wsl --install -d ubuntu
 
-2. Install dependencies:
+2. Launch Ubuntu
+
+3. Install Redis 
+   ```bash sudo apt install redis
+
+4. Start server
+   ```bash sudo systemctl start redis
+
+## Starting Application
+
+1. Install dependencies:
    ```bash
    pip install -r requirements.txt
 
-3. Run the publisher:
+2. Run the App:
    ```bash
-    python publisher.py
-
-4. Run the aggregator:
-   ```bash
-    python aggregator.py
-
+    python app.py
