@@ -1,4 +1,3 @@
-# compare.py
 import websocket
 import threading
 import json

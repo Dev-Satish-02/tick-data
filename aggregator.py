@@ -8,16 +8,11 @@ import logging
 from datetime import datetime
 from collections import defaultdict
 
-# ------------------------- Setup Logging ------------------------- #
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
+# logging
+def setup_logger():
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 
-# ------------------------- Parse Arguments ------------------------- #
-parser = argparse.ArgumentParser()
-parser.add_argument('--symbol', type=str, default='BTCUSDT', help='Symbol to subscribe to')
-args = parser.parse_args()
-SYMBOL = args.symbol
-
-# ------------------------- Redis Connection ------------------------- #
+# redis 
 def connect_to_redis():
     while True:
         try:
@@ -29,18 +24,7 @@ def connect_to_redis():
             logging.error("Redis connection failed. Retrying in 5 seconds...")
             time.sleep(5)
 
-r = connect_to_redis()
-pubsub = r.pubsub()
-pubsub.subscribe(SYMBOL)
-
-# ------------------------- CSV Setup ------------------------- #
-CSV_FILE = 'summary.csv'
-if not os.path.exists(CSV_FILE):
-    with open(CSV_FILE, 'w', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow(['symbol', 'minute', 'open', 'high', 'low', 'close', 'volume'])
-
-# ------------------------- Utility Functions ------------------------- #
+# utility functions
 def get_minute(ts):
     return datetime.utcfromtimestamp(int(ts) / 1000).strftime('%Y%m%d_%H%M')
 
@@ -55,60 +39,78 @@ def aggregate_ticks(ticks):
         'volume': sum(volumes)
     }
 
-# ------------------------- Tick Aggregation Loop ------------------------- #
-tick_data = defaultdict(list)
-current_minute = None
+# main aggregator logic
+def main():
+    setup_logger()
+    # cli
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--symbol', type=str, default='BTCUSDT', help='symbol to subscribe to')
+    args = parser.parse_args()
+    SYMBOL = args.symbol
+    # redis
+    r = connect_to_redis()
+    pubsub = r.pubsub()
+    pubsub.subscribe(SYMBOL)
+    # csv
+    CSV_FILE = 'summary.csv'
+    if not os.path.exists(CSV_FILE):
+        with open(CSV_FILE, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['symbol', 'minute', 'open', 'high', 'low', 'close', 'volume'])
 
-logging.info(f"Started aggregator for symbol: {SYMBOL}")
+    tick_data = defaultdict(list)
+    current_minute = None
 
-for message in pubsub.listen():
-    if message['type'] != 'message':
-        continue
+    logging.info(f"Started aggregator for symbol: {SYMBOL}")
 
-    try:
-        tick = json.loads(message['data'])
-        symbol = tick['symbol']
-        price = float(tick['price'])
-        volume = float(tick['volume'])
-        ts = tick['timestamp']
-        minute_key = get_minute(ts)
+    for message in pubsub.listen():
+        if message['type'] != 'message':
+            continue
 
-        if current_minute is None:
-            current_minute = minute_key
+        try:
+            tick = json.loads(message['data'])
+            symbol = tick['symbol']
+            price = float(tick['price'])
+            volume = float(tick['volume'])
+            ts = tick['timestamp']
+            minute_key = get_minute(ts)
 
-        if minute_key != current_minute:
-            summary = aggregate_ticks(tick_data[current_minute])
-            redis_key = f"{symbol}:{current_minute}"
+            if current_minute is None:
+                current_minute = minute_key
 
-            # Publish to Redis
-            try:
-                r.set(redis_key, json.dumps(summary))
-                logging.info(f"Published {redis_key} => {summary}")
-            except redis.exceptions.RedisError as e:
-                logging.error(f"Redis publish error: {e}")
+            if minute_key != current_minute:
+                summary = aggregate_ticks(tick_data[current_minute])
+                redis_key = f"{symbol}:{current_minute}"
 
-            # Save to CSV
-            try:
-                with open(CSV_FILE, 'a', newline='') as f:
-                    writer = csv.writer(f)
-                    writer.writerow([
-                        symbol, current_minute,
-                        summary['open'], summary['high'],
-                        summary['low'], summary['close'],
-                        summary['volume']
-                    ])
-            except Exception as e:
-                logging.error(f"CSV write error: {e}")
+                try:
+                    r.set(redis_key, json.dumps(summary))
+                    logging.info(f"Published {redis_key} => {summary}")
+                except redis.exceptions.RedisError as e:
+                    logging.error(f"Redis publish error: {e}")
 
-            # Reset
-            del tick_data[current_minute]
-            current_minute = minute_key
+                try:
+                    with open(CSV_FILE, 'a', newline='') as f:
+                        writer = csv.writer(f)
+                        writer.writerow([
+                            symbol, current_minute,
+                            summary['open'], summary['high'],
+                            summary['low'], summary['close'],
+                            summary['volume']
+                        ])
+                except Exception as e:
+                    logging.error(f"CSV write error: {e}")
 
-        tick_data[minute_key].append({
-            'price': price,
-            'volume': volume,
-            'timestamp': ts
-        })
+                del tick_data[current_minute]
+                current_minute = minute_key
 
-    except Exception as e:
-        logging.error(f"Processing error: {e}")
+            tick_data[minute_key].append({
+                'price': price,
+                'volume': volume,
+                'timestamp': ts
+            })
+
+        except Exception as e:
+            logging.error(f"Processing error: {e}")
+
+if __name__ == '__main__':
+    main()
