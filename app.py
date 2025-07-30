@@ -153,5 +153,21 @@ def serve_csv_file():
 def show_chart():
     return render_template('chart.html')
 
+@app.route('/compare')
+def compare():
+    return render_template('compare.html')
+
+@app.route('/compare_data')
+def compare_data():
+    r = connect_to_redis()
+    if not r:
+        return jsonify({"error": "Redis not connected"})
+    trade = r.get("compare:trade")
+    ticker = r.get("compare:ticker")
+    return jsonify({
+        "trade": json.loads(trade) if trade else {},
+        "ticker": json.loads(ticker) if ticker else {}
+    })
+
 if __name__ == '__main__':
     app.run(debug=True)

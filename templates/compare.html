@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Compare @trade vs @ticker</title>
+  <style>
+    body { font-family: Arial; padding: 2rem; }
+    .container { display: flex; gap: 2rem; }
+    .box { flex: 1; border: 1px solid #ccc; padding: 1rem; border-radius: 8px; }
+    .title { font-weight: bold; margin-bottom: 0.5rem; }
+    pre { background: #f8f8f8; padding: 1rem; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h2>Live Binance Data Comparison</h2>
+  <div class="container">
+    <div class="box">
+      <div class="title">@trade (raw trades)</div>
+      <pre id="trade"></pre>
+    </div>
+    <div class="box">
+      <div class="title">@ticker (24hr stats)</div>
+      <pre id="ticker"></pre>
+    </div>
+  </div>
+
+  <script>
+    function update() {
+      fetch('/compare_data')
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById("trade").textContent = JSON.stringify(data.trade, null, 2);
+          document.getElementById("ticker").textContent = JSON.stringify(data.ticker, null, 2);
+        });
+    }
+    setInterval(update, 1000);
+    update();
+  </script>
+</body>
+</html>
